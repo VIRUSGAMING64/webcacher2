@@ -1,8 +1,9 @@
 package urlutils
 
-import "net/url"
+import (
+	"net/url"
+)
 
-func Parse(uri url.URL) {
-	
-	
+func Parse(uri *url.URL) string {
+	return ""
 }

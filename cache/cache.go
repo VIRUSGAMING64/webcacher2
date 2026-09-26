@@ -18,6 +18,8 @@ type UrlCache struct {
 	MemKeys  map[string]string `json:"keys"`
 }
 
+var Global *UrlCache
+
 func (c *UrlCache) Load() error {
 	data, err := os.ReadFile(c.SavePath)
 	if err != nil {

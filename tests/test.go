@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"webcacher2/cache"
+	"webcacher2/proxy"
 )
 
 func TestCachefuntions() {
@@ -28,5 +29,6 @@ func TestCachefuntions() {
 }
 
 func main() {
-	TestCachefuntions()
+	//TestCachefuntions()
+	fmt.Println(proxy.HasInternet())
 }

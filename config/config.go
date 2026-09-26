@@ -1,5 +1,7 @@
 package config
 
+import "encoding/json"
+
 type Config struct {
 	IgnoreQueue   []string
 	NoCacheSites  []string
@@ -16,4 +18,14 @@ type Config struct {
 	args          bool
 	NoQueue       bool
 	NoMemoryCache bool
+}
+
+var Global *Config
+
+func (c *Config) Json() []byte {
+	data, err := json.MarshalIndent(c, "", "   ")
+	if err != nil {
+		return []byte{}
+	}
+	return data
 }
