@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"webcacher2/cache"
 	"webcacher2/config"
@@ -9,12 +10,14 @@ import (
 	"github.com/elazarl/goproxy"
 )
 
-func Run() {
+func RunProxy() {
+	config.ParseArgs()
 	Proxy := goproxy.NewProxyHttpServer()
 	Proxy.OnRequest().HandleConnect(proxy.ConnectHandler)
 	Proxy.OnRequest().DoFunc(proxy.OnRequest)
 	Proxy.OnResponse().DoFunc(proxy.OnResponse)
-	http.ListenAndServe(":8092", Proxy)
+	fmt.Println("Listening on 0.0.0.0:8092")
+	fmt.Println(http.ListenAndServe(":8092", Proxy))
 }
 
 func main() {
@@ -24,5 +27,5 @@ func main() {
 	}
 	config.Global = conf
 	cache.Global = cache.NewUrlCache()
-	Run()
+	RunProxy()
 }

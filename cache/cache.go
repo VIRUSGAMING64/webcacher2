@@ -1,12 +1,13 @@
 package cache
 
 import (
-	"crypto/sha512"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"os"
 	"path"
+	"sync"
+	"webcacher2/urlutils"
 )
 
 type UrlCache struct {
@@ -16,6 +17,7 @@ type UrlCache struct {
 	Counts   map[string]int64  `json:"count"`
 	Hashes   map[string]string `json:"hashes"`
 	MemKeys  map[string]string `json:"keys"`
+	mtx      sync.Mutex
 }
 
 var Global *UrlCache
@@ -29,12 +31,10 @@ func (c *UrlCache) Load() error {
 }
 
 func (c *UrlCache) Push(url string, body []byte) bool {
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
 	var err error = nil
-	defer func() {
-		if err != nil {
-			fmt.Println(err)
-		}
-	}()
+
 	path := c.CachePath(url)
 	inf, err := os.Stat(path)
 	curr := int64(0)
@@ -49,20 +49,16 @@ func (c *UrlCache) Push(url string, body []byte) bool {
 		curr = 0
 	}
 	c.Size += int64(len(body)) - curr
-
-	fmt.Println(curr)
 	c.MemKeys[path] = url
 
 	return true
 }
 
 func (c *UrlCache) Pop(url string) ([]byte, error) {
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
 	var err error = nil
-	defer func() {
-		if err != nil {
-			fmt.Println(err)
-		}
-	}()
+
 	pth := c.CachePath(url)
 	data, err := os.ReadFile(pth)
 	if err != nil {
@@ -105,7 +101,14 @@ func (c *UrlCache) Json() []byte {
 }
 
 func (c *UrlCache) CachePath(url string) string {
-	hash := sha512.Sum512([]byte(url))
+	ext := urlutils.Extension(url)
+	hash := sha256.Sum256([]byte(url))
 	fil := hex.EncodeToString(hash[:])
+
+	if ext != "" {
+		fil += "." + ext
+	}
+	fil += ".phttp"
+
 	return path.Join(c.Folder, fil)
 }

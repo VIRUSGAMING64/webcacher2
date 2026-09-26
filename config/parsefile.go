@@ -49,16 +49,6 @@ func ReadConfig(file string) (*Config, error) {
 				config.Syncs = temp_arr
 			} else if action == "CacheArgs:" {
 				config.CacheArgs = temp_arr
-			} else if action == "ProxyAddr:" && len(temp_arr) > 0 {
-				config.ProxyAddr = temp_arr[0]
-			} else if action == "DashboardAddr:" && len(temp_arr) > 0 {
-				config.DashboardAddr = temp_arr[0]
-			} else if action == "CacheDir:" && len(temp_arr) > 0 {
-				config.CacheDir = temp_arr[0]
-			} else if action == "MetricsFile:" && len(temp_arr) > 0 {
-				config.MetricsFile = temp_arr[0]
-			} else if action == "LogLevel:" && len(temp_arr) > 0 {
-				config.LogLevel = temp_arr[0]
 			} else if action == "IgnoreQueue:" && len(temp_arr) > 0 {
 				config.IgnoreQueue = temp_arr
 			}

@@ -10,14 +10,11 @@ type Config struct {
 	Syncs         []string
 	CacheArgs     []string
 	Pproxy        []string
-	ProxyAddr     string
-	DashboardAddr string
-	CacheDir      string
-	MetricsFile   string
-	LogLevel      string
+	NoCache       bool
 	args          bool
 	NoQueue       bool
 	NoMemoryCache bool
+	NoAll         bool
 }
 
 var Global *Config
