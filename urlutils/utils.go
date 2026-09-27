@@ -1,7 +1,6 @@
 package urlutils
 
 import (
-	"fmt"
 	"net/http"
 	"strings"
 	"webcacher2/config"
@@ -12,7 +11,6 @@ func Parse(req *http.Request) string {
 	uri := req.URL.String()
 	ext := Extension(uri)
 	for _, elem := range config.Global.NoCacheSites {
-		fmt.Println(req.Host, elem)
 		if elem == req.Host {
 			return ""
 		}

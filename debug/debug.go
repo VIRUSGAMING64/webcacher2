@@ -6,9 +6,11 @@ import (
 	"time"
 )
 
+var file string = "/tmp/webacher.log"
+
 func Write(mot string, a ...any) {
 	data := []byte(fmt.Sprintln(time.Now().Local().String(), mot, a))
-	fd, err := os.OpenFile("webcacher.log", os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+	fd, err := os.OpenFile(file, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
 		panic(err)
 	}

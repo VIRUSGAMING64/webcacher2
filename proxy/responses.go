@@ -3,10 +3,13 @@ package proxy
 import (
 	"bufio"
 	"bytes"
+	"fmt"
 	"io"
 	"net/http"
 	"webcacher2/cache"
+	"webcacher2/config"
 	wdebug "webcacher2/debug"
+	"webcacher2/queue"
 	"webcacher2/urlutils"
 
 	"github.com/elazarl/goproxy"
@@ -36,7 +39,7 @@ func OnResponse(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Response {
 }
 
 func OnRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.Request, *http.Response) {
-	wdebug.Log("request from: ", req.URL.String())
+	wdebug.Log("request to: ", req.URL.String())
 	uri := urlutils.Parse(req)
 
 	if req.Method != "GET" || uri == "" {
@@ -44,14 +47,40 @@ func OnRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.Request, *http.R
 	}
 
 	data, err := cache.Global.Pop(uri)
-	if err != nil {
-		wdebug.Error("cache error", err)
-		return req, nil
+
+	if err == nil && !config.Global.NoCache {
+		resp, err := http.ReadResponse(bufio.NewReader(bytes.NewReader(data)), req)
+		resp.Header.Add("webcacher", "true")
+		if err != nil {
+			return req, nil
+		}
+		return req, resp
 	}
-	resp, err := http.ReadResponse(bufio.NewReader(bytes.NewReader(data)), req)
-	resp.Header.Add("webcacher", "true")
-	if err != nil {
-		return req, nil
+
+	if !HasInternet() {
+		flag := req.Header.Get("webcacher-queue") != "true"
+		for _, elem := range config.Global.IgnoreQueue {
+			if elem == req.Host {
+				flag = false
+				break
+			}
+		}
+		if flag {
+			queue.GQueue.Push(queue.NewObj(req))
+		}
 	}
-	return req, resp
+
+	return req, nil
+
+}
+
+func RunProxy() {
+	go MainWork()
+	config.ParseArgs()
+	Proxy := goproxy.NewProxyHttpServer()
+	Proxy.OnRequest().HandleConnect(ConnectHandler)
+	Proxy.OnRequest().DoFunc(OnRequest)
+	Proxy.OnResponse().DoFunc(OnResponse)
+	fmt.Println("Listening on 0.0.0.0:8092")
+	fmt.Println(http.ListenAndServe(":8092", Proxy))
 }

@@ -3,3 +3,4 @@ cache.json
 webcacher.conf
 webcacher.log
 .cache
+queue.json
