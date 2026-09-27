@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"os"
+	"os/signal"
 	"webcacher2/cache"
 	"webcacher2/config"
 	"webcacher2/proxy"
@@ -9,19 +11,38 @@ import (
 )
 
 func main() {
+
+	c := make(chan os.Signal)
+	signal.Notify(c, os.Kill, os.Interrupt)
+
+	go func() {
+		for s := range c {
+			queue.GQueue.Save("queue.json")
+			cache.Global.Save()
+			fmt.Println("Saved queue with size: ", queue.GQueue.Length())
+			fmt.Println(s)
+			if s == os.Kill || s == os.Interrupt {
+				os.Exit(0)
+			}
+		}
+	}()
+
 	go proxy.InternetChecker()
 	conf, err := config.ReadConfig("webcacher.conf")
 	if err != nil {
 		panic(err)
 	}
+	config.Global = conf
+	config.ParseArgs()
+
+	cache.Global = cache.NewUrlCache()
+	cache.Global.Load()
+
 	proxy.Pstats.Load("stats.json")
 	fmt.Println("Calculating size")
 	proxy.Pstats.Total = proxy.CacheSize(".cache/")
 	fmt.Println("Size:", proxy.Pstats.Total)
 	queue.GQueue.Load("queue.json")
 	fmt.Println("Loaded queue with size: [", queue.GQueue.Length(), "]")
-	config.Global = conf
-	cache.Global = cache.NewUrlCache()
-	cache.Global.Load()
 	proxy.RunProxy()
 }

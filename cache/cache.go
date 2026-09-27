@@ -1,18 +1,24 @@
 package cache
 
 import (
+	"bufio"
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
+	"net/http"
+	"net/http/httputil"
 	"os"
-	"path"
+	"path/filepath"
 	"sync"
 	"webcacher2/urlutils"
 )
 
+var ErrMiss = errors.New("cache: miss")
+
 type UrlCache struct {
 	SavePath string            `json:"savepath"`
-	Folder   string            `json:"folder"`
 	Size     int64             `json:"size"`
 	Counts   map[string]int64  `json:"count"`
 	Hashes   map[string]string `json:"hashes"`
@@ -22,64 +28,111 @@ type UrlCache struct {
 
 var Global *UrlCache
 
+func (c *UrlCache) init() {
+	if c.SavePath == "" {
+		c.SavePath = "cache.json"
+	}
+	if c.Counts == nil {
+		c.Counts = make(map[string]int64)
+	}
+	if c.Hashes == nil {
+		c.Hashes = make(map[string]string)
+	}
+	if c.MemKeys == nil {
+		c.MemKeys = make(map[string]string)
+	}
+}
+
 func (c *UrlCache) Load() error {
 	data, err := os.ReadFile(c.SavePath)
+	defer c.init()
+
 	if err != nil {
 		return err
 	}
-	return json.Unmarshal(data, &c)
+	if err = json.Unmarshal(data, c); err != nil {
+		return err
+	}
+	return nil
 }
 
-func (c *UrlCache) Push(url string, body []byte) bool {
+// * <sha256 de METHOD+url>[.ext].phttp dentro de la carpeta del cache
+func (c *UrlCache) Push(req *http.Request, resp *http.Response) bool {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
-	var err error = nil
 
-	path := c.CachePath(url)
-	inf, err := os.Stat(path)
-	curr := int64(0)
-	if err == nil {
-		curr = inf.Size()
+	if req == nil || resp == nil {
+		return false
 	}
-	err = os.WriteFile(path, body, 0644)
+	key := urlutils.Key(req)
+	if key == "" {
+		return false
+	}
+
+	ext := urlutils.Extension(req)
+	file := c.CachePath(key, ext)
+	body, err := httputil.DumpResponse(resp, true)
+
 	if err != nil {
 		return false
 	}
-	if c.Counts[url] == 0 {
+
+	curr := int64(0)
+	inf, err := os.Stat(file)
+	if err == nil {
+		curr = inf.Size()
+	}
+	if err = os.MkdirAll(".cache", 0755); err != nil {
+		return false
+	}
+	if err = os.WriteFile(file, body, 0644); err != nil {
+		return false
+	}
+
+	if c.Counts[key] == 0 {
 		curr = 0
 	}
 	c.Size += int64(len(body)) - curr
-	c.MemKeys[path] = url
+	c.Hashes[key] = Hash(key)
+	c.MemKeys[file] = key
 
 	return true
 }
 
-func (c *UrlCache) Pop(url string) ([]byte, error) {
+// * Pop busca el archivo probando las claves que pudo haber usado webcacher1
+func (c *UrlCache) Pop(req *http.Request) (*http.Response, error) {
+	if req == nil || urlutils.Parse(req) == "" {
+		return nil, ErrMiss
+	}
+
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
-	var err error = nil
-
-	pth := c.CachePath(url)
-	data, err := os.ReadFile(pth)
+	key := urlutils.Parse(req)
+	ext := urlutils.Extension(req)
+	file := c.CachePath(key, ext)
+	data, err := os.ReadFile(file)
 	if err != nil {
-		return nil, err
+		return nil, ErrMiss
 	}
-	c.Counts[url] += 1
+	resp, err := http.ReadResponse(bufio.NewReader(bytes.NewReader(data)), req)
+	if err != nil {
+		return nil, ErrMiss
+	}
+	c.Counts[key] += 1
+	c.MemKeys[file] = key
+	return resp, nil
 
-	return data, err
 }
 
 func NewUrlCache() *UrlCache {
 	c := UrlCache{}
-	c.MemKeys = make(map[string]string)
-	c.Counts = make(map[string]int64)
-	c.Hashes = make(map[string]string)
-	c.Folder = ".cache"
-	c.SavePath = "cache.json"
+	c.init()
 	return &c
 }
 
 func (c *UrlCache) Save() error {
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
 	data := c.Json()
 	fd, err := os.OpenFile(c.SavePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
@@ -89,7 +142,7 @@ func (c *UrlCache) Save() error {
 	if err != nil {
 		return err
 	}
-	return nil
+	return fd.Close()
 }
 
 func (c *UrlCache) Json() []byte {
@@ -100,15 +153,17 @@ func (c *UrlCache) Json() []byte {
 	return data
 }
 
-func (c *UrlCache) CachePath(url string) string {
-	ext := urlutils.Extension(url)
-	hash := sha256.Sum256([]byte(url))
-	fil := hex.EncodeToString(hash[:])
+func Hash(key string) string {
+	hash := sha256.Sum256([]byte(key))
+	return hex.EncodeToString(hash[:])
+}
 
+func (c *UrlCache) CachePath(key string, ext string) string {
+	fil := Hash(key)
 	if ext != "" {
 		fil += "." + ext
 	}
 	fil += ".phttp"
 
-	return path.Join(c.Folder, fil)
+	return filepath.Join(".cache", fil)
 }

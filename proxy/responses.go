@@ -1,11 +1,11 @@
 package proxy
 
 import (
-	"bufio"
 	"bytes"
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"webcacher2/cache"
 	"webcacher2/config"
 	wdebug "webcacher2/debug"
@@ -36,23 +36,28 @@ func OnResponse(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Response {
 	if err != nil {
 		return resp
 	}
-	uri := urlutils.Parse(resp.Request)
-	cache.Global.Push(uri, data)
+	//* hay que devolver el body al response, si no el dump queda vacio
+	resp.Body.Close()
+	resp.Body = io.NopCloser(bytes.NewReader(data))
+	cache.Global.Push(resp.Request, resp)
 	return resp
 }
 
 func OnRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.Request, *http.Response) {
-	wdebug.Log("request to: ", req.URL.String())
-	uri := urlutils.Parse(req)
 
-	if req.Method != "GET" || uri == "" {
+	wdebug.Log("request to: ", req.URL.String())
+
+	if req.Method != "GET" || urlutils.Parse(req) == "" {
 		return req, nil
 	}
 
-	data, err := cache.Global.Pop(uri)
+	resp, err := cache.Global.Pop(req)
 
 	if err == nil && !config.Global.NoCache {
-		resp, err := http.ReadResponse(bufio.NewReader(bytes.NewReader(data)), req)
+
+		if err != nil {
+			return req, nil
+		}
 		resp.Header.Add("webcacher", "true")
 		if err != nil {
 			return req, nil
@@ -78,6 +83,11 @@ func OnRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.Request, *http.R
 }
 
 func RunProxy() {
+	fd, err := os.OpenFile("/tmp/webcacher-stderr.txt", os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
+	os.Stderr = fd
+	if err != nil {
+		fmt.Println(err)
+	}
 	go MainWork()
 	config.ParseArgs()
 	Proxy := goproxy.NewProxyHttpServer()

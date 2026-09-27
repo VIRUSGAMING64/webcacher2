@@ -19,6 +19,10 @@ type Config struct {
 
 var Global *Config
 
+func (c *Config) NoArgsMode() bool {
+	return c.args
+}
+
 func (c *Config) Json() []byte {
 	data, err := json.MarshalIndent(c, "", "   ")
 	if err != nil {

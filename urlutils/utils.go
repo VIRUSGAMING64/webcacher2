@@ -2,43 +2,105 @@ package urlutils
 
 import (
 	"net/http"
+	"path/filepath"
 	"strings"
 	"webcacher2/config"
 )
 
-func Parse(req *http.Request) string {
-	//* Aqui es donde se aplican las config
-	uri := req.URL.String()
-	ext := Extension(uri)
-	for _, elem := range config.Global.NoCacheSites {
-		if elem == req.Host {
-			return ""
-		}
-	}
-	for _, elem := range config.Global.NoCacheExt {
-		if elem == ext {
-			return ""
-		}
-	}
-	for _, elem := range config.Global.NoArgs {
-		if elem == req.Host {
-			return req.Method + CutArgs(uri)
-		}
-	}
+const maxExtLen = 10
 
-	return req.Method + uri
-}
-
-func Extension(uri string) string {
-	strs := strings.Split(CutArgs(uri), ".")
-	if len(strs) <= 1 {
+func Key(req *http.Request) string {
+	if req == nil {
 		return ""
 	}
-	ext := strs[len(strs)-1]
-	if len(ext) >= 5 {
-		ext = ""
+	if config.Global == nil || !config.Global.NoArgsMode() {
+		return req.Method + req.URL.String()
+	}
+
+	cacheargs := true
+	for _, elem := range config.Global.NoArgs {
+		if elem == req.Host {
+			cacheargs = false
+		}
+	}
+
+	uri := req.URL.String()
+	parts := strings.Split(uri, "?")
+	path := parts[0]
+
+	if len(parts) > 1 && len(config.Global.CacheArgs) >= 1 {
+		sep := "?"
+		for _, arg := range strings.Split(parts[1], "&") {
+			kv := strings.Split(arg, "=")
+			if len(kv) <= 1 {
+				continue
+			}
+			if isIn(kv[0], config.Global.CacheArgs) {
+				if sep != "?" {
+					sep += "&"
+				}
+				sep = sep + kv[0] + "=" + kv[1] //!TODO Aqui es donde se debe cambiar los valores de los arguments
+			}
+		}
+		path = path + sep
+	}
+
+	if cacheargs || len(parts) <= 1 {
+		return req.Method + req.URL.String()
+	}
+
+	return req.Method + path
+}
+
+func Parse(req *http.Request) string {
+	if req == nil {
+		return ""
+	}
+	if config.Global != nil {
+		ext := Extension(req)
+		for _, elem := range config.Global.NoCacheSites {
+			if elem == req.Host {
+				return ""
+			}
+		}
+		for _, elem := range config.Global.NoCacheExt {
+			if elem == ext {
+				return ""
+			}
+		}
+	}
+	return Key(req)
+}
+
+func Extension(req *http.Request) string {
+	if req == nil || req.URL == nil {
+		return ""
+	}
+	ext := filepath.Ext(req.URL.Path)
+	if ext == "" {
+		return ""
+	}
+	ext = strings.TrimPrefix(ext, ".")
+	if len(ext) > maxExtLen {
+		return ""
 	}
 	return ext
+}
+
+func validExt(ext string) bool {
+	if ext == "" {
+		return true
+	}
+	return !strings.ContainsAny(ext, `/\`)
+}
+
+func isIn(elem string, arr []string) bool {
+	for i := 0; i < len(arr); i++ {
+		if elem == arr[i] {
+			return true
+		}
+	}
+	return false
 }
 
 func GetArgs(uri string) map[string]string {
