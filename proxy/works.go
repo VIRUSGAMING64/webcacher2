@@ -45,12 +45,12 @@ func Work(obj *queue.QueueObj) {
 }
 
 func MainWork() {
-	if config.Global.NoQueue {
-		return
-	}
 	for {
 		o := 0
 		for queue.GQueue.Running.Load() < int32(queue.GQueue.Workers) {
+			if config.Global.NoQueue {
+				break
+			}
 			obj := queue.GQueue.Pop()
 			go Work(obj)
 			queue.GQueue.Running.Add(1)
