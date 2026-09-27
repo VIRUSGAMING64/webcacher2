@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"time"
+	"webcacher2/cache"
 	"webcacher2/config"
 	"webcacher2/queue"
 )
@@ -61,6 +62,7 @@ func MainWork() {
 		}
 
 		queue.GQueue.Save("queue.json")
+		cache.Global.Save()
 		fmt.Println("Queue saved with length: [", queue.GQueue.Length(), "]")
 		Pstats.Save("stats.json")
 		time.Sleep(time.Second * 10)

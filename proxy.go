@@ -22,5 +22,6 @@ func main() {
 	fmt.Println("Loaded queue with size: [", queue.GQueue.Length(), "]")
 	config.Global = conf
 	cache.Global = cache.NewUrlCache()
+	cache.Global.Load()
 	proxy.RunProxy()
 }

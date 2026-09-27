@@ -32,6 +32,7 @@ func OnResponse(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Response {
 		return resp
 	}
 	data, err := io.ReadAll(resp.Body)
+	fmt.Println("Downloaded", len(data), "bytes from", resp.Request.URL.String())
 	if err != nil {
 		return resp
 	}
