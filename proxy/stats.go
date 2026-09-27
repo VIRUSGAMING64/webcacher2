@@ -42,6 +42,14 @@ func (s *Stats) Load(file string) error {
 }
 
 func (s *Stats) Save(file string) error {
+	his := make([]UrlStat, 0)
+	for _, elem := range s.History {
+		if time.Since(time.Unix(0, elem.Time)).Seconds() >= 60 {
+			continue
+		}
+		his = append(his, elem)
+	}
+	s.History = his
 	data, err := json.MarshalIndent(&s, "", "   ")
 	if err != nil {
 		return err

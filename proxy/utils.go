@@ -17,6 +17,8 @@ func mustParseURL(raw string) *url.URL {
 	return parsed
 }
 
+var Internet bool = HasInternet()
+
 func HasInternet() bool {
 	var Dns []string = []string{"1.1.1.1:53", "8.8.8.8:83"}
 
@@ -28,6 +30,13 @@ func HasInternet() bool {
 	}
 
 	return false
+}
+
+func InternetChecker() {
+	for {
+		Internet = HasInternet()
+		time.Sleep(time.Second * 3)
+	}
 }
 
 func CacheSize(folder string) int64 {

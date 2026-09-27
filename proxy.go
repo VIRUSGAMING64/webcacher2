@@ -9,6 +9,7 @@ import (
 )
 
 func main() {
+	go proxy.InternetChecker()
 	conf, err := config.ReadConfig("webcacher.conf")
 	if err != nil {
 		panic(err)

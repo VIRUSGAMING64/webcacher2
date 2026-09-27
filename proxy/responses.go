@@ -20,14 +20,14 @@ var ConnectHandler goproxy.FuncHttpsHandler = func(host string, ctx *goproxy.Pro
 }
 
 func OnResponse(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Response {
+	if resp == nil || resp.Request == nil {
+		return resp
+	}
 	if resp.Header.Get("webcacher") == "true" {
 		Pstats.AddHint(resp)
 		return resp
 	}
 	defer Pstats.AddBypass(resp)
-	if resp == nil || resp.Request == nil {
-		return resp
-	}
 	if resp.Request.Method != "GET" || resp.StatusCode != 200 {
 		return resp
 	}
@@ -59,7 +59,7 @@ func OnRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.Request, *http.R
 		return req, resp
 	}
 
-	if !HasInternet() {
+	if !Internet {
 		flag := req.Header.Get("webcacher-queue") != "true"
 		for _, elem := range config.Global.IgnoreQueue {
 			if elem == req.Host {
