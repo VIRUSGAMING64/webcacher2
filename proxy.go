@@ -13,6 +13,10 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	proxy.Pstats.Load("stats.json")
+	fmt.Println("Calculating size")
+	proxy.Pstats.Total = proxy.CacheSize(".cache/")
+	fmt.Println("Size:", proxy.Pstats.Total)
 	queue.GQueue.Load("queue.json")
 	fmt.Println("Loaded queue with size: [", queue.GQueue.Length(), "]")
 	config.Global = conf

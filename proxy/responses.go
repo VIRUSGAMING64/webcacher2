@@ -20,21 +20,23 @@ var ConnectHandler goproxy.FuncHttpsHandler = func(host string, ctx *goproxy.Pro
 }
 
 func OnResponse(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Response {
+	if resp.Header.Get("webcacher") == "true" {
+		Pstats.AddHint(resp)
+		return resp
+	}
+	defer Pstats.AddBypass(resp)
 	if resp == nil || resp.Request == nil {
 		return resp
 	}
 	if resp.Request.Method != "GET" || resp.StatusCode != 200 {
 		return resp
 	}
-	if resp.Header.Get("webcacher") == "true" {
-		return resp
-	}
-	_, err := io.ReadAll(resp.Body)
+	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return resp
 	}
-	//uri := urlutils.Parse(resp.Request.Method + resp.Request.URL.String())
-
+	uri := urlutils.Parse(resp.Request)
+	cache.Global.Push(uri, data)
 	return resp
 }
 

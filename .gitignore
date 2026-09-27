@@ -4,3 +4,4 @@ webcacher.conf
 webcacher.log
 .cache
 queue.json
+stats.json

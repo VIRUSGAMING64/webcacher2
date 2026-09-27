@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"time"
+	"webcacher2/config"
 	"webcacher2/queue"
 )
 
@@ -44,7 +45,9 @@ func Work(obj *queue.QueueObj) {
 }
 
 func MainWork() {
-
+	if config.Global.NoQueue {
+		return
+	}
 	for {
 		o := 0
 		for queue.GQueue.Running.Load() < int32(queue.GQueue.Workers) {
@@ -57,9 +60,10 @@ func MainWork() {
 			}
 		}
 
-		time.Sleep(time.Second * 5)
-		fmt.Println(queue.GQueue.Length())
-		os.WriteFile("queue.json", queue.GQueue.Json(), 0644)
+		queue.GQueue.Save("queue.json")
+		fmt.Println("Queue saved with length: [", queue.GQueue.Length(), "]")
+		Pstats.Save("stats.json")
+		time.Sleep(time.Second * 10)
 	}
 
 }

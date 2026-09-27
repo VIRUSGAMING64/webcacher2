@@ -1,8 +1,10 @@
 package proxy
 
 import (
+	"io/fs"
 	"net"
 	"net/url"
+	"path/filepath"
 	"time"
 )
 
@@ -26,5 +28,21 @@ func HasInternet() bool {
 	}
 
 	return false
+}
 
+func CacheSize(folder string) int64 {
+	sz := int64(0)
+	filepath.Walk(
+		folder, func(path string, info fs.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			if info.IsDir() {
+				return nil
+			}
+			sz += info.Size()
+			return err
+		},
+	)
+	return sz
 }

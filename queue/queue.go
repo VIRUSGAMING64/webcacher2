@@ -86,8 +86,9 @@ func (q *Queue) Pop() *QueueObj {
 	if q.last == nil {
 		return nil
 	}
-	obj := q.last.Data
-	q.last = q.last.prev
+	obj := q.first.Data
+	q.first = q.first.next
+	q.first.prev = nil
 	q.Size -= 1
 	q.Exists[obj.Url] = false
 	return obj
@@ -125,6 +126,7 @@ func (q *Queue) Load(file string) {
 	for _, elem := range obj.List {
 		q.Push(elem)
 	}
+	q.Workers = obj.Workers
 	if err != nil {
 		wdebug.Error(" error loading queue: ", err)
 		return
