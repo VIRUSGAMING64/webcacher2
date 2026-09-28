@@ -65,7 +65,7 @@ func MainWork() {
 		cache.Global.Save()
 		fmt.Println("Queue saved with length: [", queue.GQueue.Length(), "]")
 		Pstats.Save("stats.json")
-		time.Sleep(time.Second * 10)
+		time.Sleep(time.Second * 60)
 	}
 
 }

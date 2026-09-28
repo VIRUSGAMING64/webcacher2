@@ -2,6 +2,7 @@ package queue
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httputil"
 	"os"
@@ -68,7 +69,7 @@ func (q *Queue) Push(obj *QueueObj) {
 	q.Exists[obj.Url] = true
 	elem := DataElem{}
 	elem.Data = obj
-	if q.last == nil {
+	if q.first == nil {
 		q.first = &elem
 		q.last = &elem
 	} else {
@@ -83,14 +84,18 @@ func (q *Queue) Push(obj *QueueObj) {
 func (q *Queue) Pop() *QueueObj {
 	q.Mtx.Lock()
 	defer q.Mtx.Unlock()
-	if q.last == nil {
+	if q.first == nil {
 		return nil
 	}
 	obj := q.first.Data
 	q.first = q.first.next
-	q.first.prev = nil
 	q.Size -= 1
 	q.Exists[obj.Url] = false
+
+	if q.first != nil {
+		q.first.prev = nil
+	}
+
 	return obj
 }
 
@@ -136,7 +141,10 @@ func (q *Queue) Load(file string) {
 
 func (q *Queue) Save(file string) {
 	data := q.Json()
-	os.WriteFile(file, data, 0644)
+	err := os.WriteFile(file, data, 0644)
+	if err != nil {
+		fmt.Println(err)
+	}
 }
 
 func NewObj(req *http.Request) *QueueObj {

@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httputil"
 	"os"
@@ -17,18 +18,41 @@ import (
 
 var ErrMiss = errors.New("cache: miss")
 
+type MemoryCache struct {
+	cache map[string][]byte
+	mut   sync.Mutex
+}
+
+func (m MemoryCache) Push(name string, data []byte) {
+	m.mut.Lock()
+	defer m.mut.Unlock()
+	m.cache[name] = data
+}
+func (m MemoryCache) Pop(name string) ([]byte, error) {
+	m.mut.Lock()
+	defer m.mut.Unlock()
+	data := m.cache[name]
+	var err error = nil
+	if len(data) == 0 {
+		err = ErrMiss
+	}
+	return data, err
+}
+
 type UrlCache struct {
 	SavePath string            `json:"savepath"`
 	Size     int64             `json:"size"`
 	Counts   map[string]int64  `json:"count"`
 	Hashes   map[string]string `json:"hashes"`
 	MemKeys  map[string]string `json:"keys"`
+	memcache MemoryCache
 	mtx      sync.Mutex
 }
 
 var Global *UrlCache
 
 func (c *UrlCache) init() {
+	c.memcache.cache = make(map[string][]byte)
 	if c.SavePath == "" {
 		c.SavePath = "cache.json"
 	}
@@ -95,7 +119,7 @@ func (c *UrlCache) Push(req *http.Request, resp *http.Response) bool {
 	c.Size += int64(len(body)) - curr
 	c.Hashes[key] = Hash(key)
 	c.MemKeys[file] = key
-
+	c.memcache.Push(file, body)
 	return true
 }
 
@@ -110,13 +134,23 @@ func (c *UrlCache) Pop(req *http.Request) (*http.Response, error) {
 	key := urlutils.Parse(req)
 	ext := urlutils.Extension(req)
 	file := c.CachePath(key, ext)
-	data, err := os.ReadFile(file)
+	data, err := c.memcache.Pop(file)
+	mem := true
+	if err != nil {
+		mem = false
+		data, err = os.ReadFile(file)
+	} else {
+		fmt.Println("memory hint", req.URL.String())
+	}
 	if err != nil {
 		return nil, ErrMiss
 	}
 	resp, err := http.ReadResponse(bufio.NewReader(bytes.NewReader(data)), req)
 	if err != nil {
 		return nil, ErrMiss
+	}
+	if mem == false {
+		c.memcache.Push(file, data)
 	}
 	c.Counts[key] += 1
 	c.MemKeys[file] = key
