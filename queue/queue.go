@@ -41,6 +41,7 @@ type SavedQueue struct {
 }
 
 var GQueue *Queue = NewQueue()
+var UGQueue *Queue = NewQueue()
 
 func NewQueue() *Queue {
 	q := Queue{

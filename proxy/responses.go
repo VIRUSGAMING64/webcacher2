@@ -24,6 +24,7 @@ func OnResponse(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Response {
 		return resp
 	}
 	if resp.Header.Get("webcacher") == "true" {
+		queue.UGQueue.Push(queue.NewObj(resp.Request))
 		Pstats.AddHint(resp)
 		return resp
 	}
@@ -49,6 +50,8 @@ func OnRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.Request, *http.R
 
 	if req.Method != "GET" || urlutils.Parse(req) == "" {
 		return req, nil
+	} else if req.Header.Get("webcacher-update") == "true" {
+		return req, nil
 	}
 
 	resp, err := cache.Global.Pop(req)
@@ -59,6 +62,7 @@ func OnRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.Request, *http.R
 			return req, nil
 		}
 		resp.Header.Add("webcacher", "true")
+		
 		if err != nil {
 			return req, nil
 		}
@@ -76,6 +80,9 @@ func OnRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.Request, *http.R
 		if flag {
 			queue.GQueue.Push(queue.NewObj(req))
 		}
+		data := ReadHTML("public/nointernet.html")
+		return req, goproxy.NewResponse(req, goproxy.ContentTypeHtml, http.StatusServiceUnavailable, data)
+
 	}
 
 	return req, nil

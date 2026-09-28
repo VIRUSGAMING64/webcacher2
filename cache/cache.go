@@ -14,6 +14,8 @@ import (
 	"path/filepath"
 	"sync"
 	"webcacher2/urlutils"
+
+	"github.com/gabriel-vasile/mimetype"
 )
 
 var ErrMiss = errors.New("cache: miss")
@@ -154,6 +156,11 @@ func (c *UrlCache) Pop(req *http.Request) (*http.Response, error) {
 	}
 	c.Counts[key] += 1
 	c.MemKeys[file] = key
+	mime := mimetype.Detect(data)
+	if mime.Is("application/json") {
+		resp.Header.Set("Content-Type", "application/json")
+
+	}
 	return resp, nil
 
 }

@@ -42,6 +42,8 @@ func (s *Stats) Load(file string) error {
 }
 
 func (s *Stats) Save(file string) error {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
 	his := make([]UrlStat, 0)
 	for _, elem := range s.History {
 		if time.Since(time.Unix(0, elem.Time)).Seconds() >= 60 {

@@ -1,6 +1,8 @@
 package config
 
-import "encoding/json"
+import (
+	"encoding/json"
+)
 
 type Config struct {
 	IgnoreQueue   []string
@@ -18,6 +20,15 @@ type Config struct {
 }
 
 var Global *Config
+
+func (c *Config) Watcher() {
+	conf, err := ReadConfig("webcacher.conf")
+	if err != nil {
+		panic(err)
+	}
+	Global = conf
+	ParseArgs()
+}
 
 func (c *Config) NoArgsMode() bool {
 	return c.args

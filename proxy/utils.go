@@ -4,9 +4,18 @@ import (
 	"io/fs"
 	"net"
 	"net/url"
+	"os"
 	"path/filepath"
 	"time"
 )
+
+func ReadHTML(name string) string {
+	data, err := os.ReadFile(name)
+	if err != nil {
+		return "No internet"
+	}
+	return string(data)
+}
 
 // {#685, 7} Esto esta hecho con copilot
 func mustParseURL(raw string) *url.URL {

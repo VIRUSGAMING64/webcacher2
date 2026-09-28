@@ -14,3 +14,4 @@ www.google.com?search=hola+soy+german   --> www.google.com?search=candela
 
 [] Add web gui to show stats
 [] Add Graph visualization to gui
+[] Change memcache in GlobalCache to LRU cache with max size

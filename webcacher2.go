@@ -28,13 +28,7 @@ func main() {
 	}()
 
 	go proxy.InternetChecker()
-	conf, err := config.ReadConfig("webcacher.conf")
-	if err != nil {
-		panic(err)
-	}
-	config.Global = conf
-	config.ParseArgs()
-
+	config.Global.Watcher()
 	cache.Global = cache.NewUrlCache()
 	cache.Global.Load()
 

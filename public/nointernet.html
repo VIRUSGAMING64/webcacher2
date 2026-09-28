@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>No internet</title>
+    <style>
+      * {
+        font-family: monospace;
+        color: white;
+        overflow: hidden;
+      }
+      :root {
+        --theme-dark: #080e13;
+      }
+
+      body {
+        padding: 0;
+        margin: 0;
+        user-select: none;
+      }
+      .bg-theme-dark {
+        background-color: var(--theme-dark);
+      }
+
+      .screen {
+        width: 100dvw;
+        height: 100dvh;
+        display: flex;
+        position: absolute;
+        left: 0;
+        top: 0;
+      }
+      .section {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        animation: totop 8s;
+        left: 0px;
+        top: 0px;
+        width: 100%;
+        height: 100dvh;
+        position: absolute;
+        opacity: 0;
+      }
+      .blured {
+        padding: 1rem;
+        border-radius: 1rem;
+        font-size: 2rem;
+        display: flex;
+        backdrop-filter: blur(3px);
+        background-color: #ffffff05;
+        border: 2px solid #ffffff05;
+      }
+      span {
+        margin: 0;
+      }
+      .bar {
+        color: #4b7f8f33;
+        animation: show 1s linear infinite;
+      }
+      .text {
+        color: #edf8ffde;
+      }
+      .rt {
+        color: #8dacb633;
+        padding-right: 0.25em;
+      }
+      @keyframes show {
+        0% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0;
+        }
+        100% {
+          opacity: 1;
+        }
+      }
+      @keyframes totop {
+        0% {
+          opacity: 1;
+        }
+        75% {
+          opacity: 1;
+        }
+      }
+      .help {
+        justify-content: center;
+        align-items: center;
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100dvw;
+        height: 100dvh;
+        display: flex;
+        gap: 6px;
+        animation: help 20s;
+        opacity: 0;
+      }
+      .keys {
+        display: flex;
+        gap: 4px;
+        padding-left: 4px;
+        padding-right: 4px;
+      }
+      .key {
+        padding: 0.1rem;
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+        border-radius: 5px;
+        border: 1px solid #ffffff44;
+        border-bottom: 3px solid #ffffff44;
+        background-color: #ffffff22;
+      }
+      @keyframes help {
+        0% {
+          opacity: 0;
+        }
+        40% {
+          opacity: 0;
+        }
+        50% {
+          opacity: 1;
+        }
+        90% {
+          opacity: 1;
+        }
+      }
+    </style>
+  </head>
+  <body class="bg-theme-dark">
+    <div class="all-center screen">
+      <div class="section">
+        <div class="blured">
+          <span class="rt">></span>
+          <span class="text"></span>
+          <span class="bar">|</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="help">
+      <div style="position: absolute; display: flex">
+        Move your mouse or press
+        <div class="keys">
+          <div class="key" id="w">W</div>
+          <div class="key" id="a">A</div>
+          <div class="key" id="s">S</div>
+          <div class="key" id="d">D</div>
+        </div>
+        to move the stars
+      </div>
+    </div>
+    <script>
+      // stars/old/init.ts
+      function init_default() {
+        let scale = 1;
+        let container = document.body;
+        let canvas = document.createElement("canvas");
+        let canvasWidth = window.innerWidth;
+        let canvasHeight = window.innerHeight;
+        canvas.width = canvasWidth;
+        canvas.height = canvasHeight;
+        canvas.style.width = canvasWidth * scale + "px";
+        canvas.style.height = canvasHeight * scale + "px";
+        let ctx = canvas.getContext("2d");
+        if (!ctx) throw new Error("No canvas context.");
+        container.appendChild(canvas);
+        return {
+          canvas,
+          ctx,
+          canvasWidth,
+          canvasHeight,
+          scale,
+        };
+      }
+
+      // stars/old/canvas.ts
+      var Canvas = class {
+        canvas;
+        ctx;
+        canvasWidth;
+        canvasHeight;
+        scale;
+        constructor(opts) {
+          this.scale = opts.scale;
+          this.ctx = opts.ctx;
+          this.scale = opts.scale;
+          this.canvasWidth = opts.canvasWidth;
+          this.canvasHeight = opts.canvasHeight;
+          this.canvas = opts.canvas;
+        }
+        style(opts) {
+          if (opts.strokeStyle) this.ctx.strokeStyle = opts.strokeStyle;
+          if (opts.fillStyle) this.ctx.fillStyle = opts.fillStyle;
+          if (opts.bgColor) {
+            this.canvas.style.background = opts.bgColor;
+          }
+        }
+        begin(x, y) {
+          this.ctx.beginPath();
+          if (x != void 0 && y != void 0) this.ctx.moveTo(x, y);
+        }
+        end() {
+          this.ctx.stroke();
+        }
+        fill() {
+          this.ctx.fill();
+        }
+        line(x, y) {
+          this.ctx.lineTo(x, y);
+        }
+        clear() {
+          this.ctx.clearRect(0, 0, this.canvasWidth, this.canvasHeight);
+        }
+        poly(Varray, opts = {}) {
+          this.ctx.beginPath();
+          this.ctx.moveTo(Varray[0], Varray[1]);
+          let middlePoint = [Varray[0], Varray[1]];
+          for (let i = 2; i + 1 < Varray.length; i += 2) {
+            const [x, y] = [Varray[i], Varray[i + 1]];
+            middlePoint[0] += x;
+            middlePoint[1] += y;
+            if (opts.stroke !== false) this.line(x, y);
+          }
+          middlePoint[0] /= Varray.length / 2;
+          middlePoint[1] /= Varray.length / 2;
+          if (opts.fill) this.ctx.fill();
+          this.ctx.stroke();
+          if (opts.dots) {
+            this.ctx.beginPath();
+            this.ctx.arc(Varray[0], Varray[1], 3, 0, Math.PI * 2);
+            this.ctx.stroke();
+            for (let i = 2; i + 1 < Varray.length; i += 2) {
+              const [x, y] = [Varray[i], Varray[i + 1]];
+              this.ctx.beginPath();
+              this.ctx.arc(x, y, 3, 0, Math.PI * 2);
+              this.ctx.stroke();
+            }
+          }
+          let closed =
+            Varray[0] == Varray[Varray.length - 2] &&
+            Varray[1] == Varray[Varray.length - 1];
+          return { middlePoint, closed };
+        }
+        circle(x, y, radius, opts = { fill: false }) {
+          this.ctx.beginPath();
+          this.ctx.arc(x, y, radius, 0, Math.PI * 2);
+          this.ctx.stroke();
+          if (opts.fill == true) this.ctx.fill();
+        }
+      };
+      function canvas_default(opts) {
+        return new Canvas(opts);
+      }
+
+      // stars/old/geometry.ts
+      var geometry_default = class {
+        offsetX;
+        offsetY;
+        scale;
+        constructor(opts = { offsetX: 0, offsetY: 0, scale: 1 }) {
+          this.offsetX = opts.offsetX || 0;
+          this.offsetY = opts.offsetY || 0;
+          this.scale = opts.scale || 1;
+        }
+        line(x1, y1, x2, y2, subdivisions = 1) {
+          let points = [x1, y1];
+          for (let i = 1; i < subdivisions + 1; i++) {
+            points.push(x2 / (subdivisions / i), y2 / (subdivisions / i));
+          }
+          return points;
+        }
+        circle(x, y, radius, subdivisions = 10) {
+          let points = [];
+          for (var i = 0; i < subdivisions; i++) {
+            var co = Math.cos((2 * Math.PI * i) / subdivisions) * radius + x;
+            var si = Math.sin((2 * Math.PI * i) / subdivisions) * radius + y;
+            points.push(co, si);
+          }
+          points.push(points[0], points[1]);
+          return points;
+        }
+        object(opts) {
+          if (!opts.rotation) opts.rotation = 0;
+          return opts.geometries.map((geometry) =>
+            geometry.map((_, i) => {
+              if (i % 2 == 0) {
+                console.log(_);
+                return _ * opts.width + opts.left;
+              } else {
+                return _ * opts.height + opts.top;
+              }
+            }),
+          );
+        }
+      };
+
+      // stars/index.ts
+      function Stars(canvas, opts) {
+        let stars = new Array(opts.count).fill({
+          x: 0,
+          y: 0,
+          opacity: 0,
+          radius: 0,
+        });
+        stars = stars.map((star) => ({
+          x: Math.random() * canvas.canvasWidth,
+          y: Math.random() * canvas.canvasHeight,
+          opacity: Math.round(Math.random() * 255),
+          radius: Math.random(),
+        }));
+        return {
+          move(x, y) {
+            for (let i = 0; i < stars.length; i++) {
+              stars[i].x += x * stars[i].radius;
+              stars[i].y += y * stars[i].radius;
+              if (stars[i].x > canvas.canvasWidth) {
+                stars[i].y = Math.random() * canvas.canvasHeight;
+                stars[i].x = stars[i].x - canvas.canvasWidth;
+                stars[i].radius = Math.random();
+                stars[i].opacity = Math.round(Math.random() * 255);
+              }
+              if (stars[i].y > canvas.canvasHeight) {
+                stars[i].x = Math.random() * canvas.canvasWidth;
+                stars[i].y = stars[i].y - canvas.canvasHeight;
+                stars[i].radius = Math.random();
+                stars[i].opacity = Math.round(Math.random() * 255);
+              }
+              if (stars[i].x < 0) {
+                stars[i].y = Math.random() * canvas.canvasHeight;
+                stars[i].x = canvas.canvasWidth;
+                stars[i].radius = Math.random();
+                stars[i].opacity = Math.round(Math.random() * 255);
+              }
+              if (stars[i].y < 0) {
+                stars[i].x = Math.random() * canvas.canvasWidth;
+                stars[i].y = canvas.canvasHeight;
+                stars[i].radius = Math.random();
+                stars[i].opacity = Math.round(Math.random() * 255);
+              }
+            }
+          },
+          show() {
+            stars.map((star) => {
+              canvas.style({
+                fillStyle: `rgb(${star.opacity},${star.opacity},${star.opacity})`,
+                strokeStyle: `rgb(${star.opacity},${star.opacity},${star.opacity})`,
+              });
+              canvas.circle(star.x, star.y, star.radius);
+            });
+          },
+        };
+      }
+      window.onload = () => {
+        setTimeout(() => {
+            window.location.reload()
+        }, 60000);
+        let text = "No internet conection. :)";
+        let words = [125, 55, 65, 350];
+        let spacing = [300, 100, 1e3, 0];
+        let split = text.split(" ");
+        let span = document.querySelector(".text");
+        let time = 0;
+        for (let i = 0; i < split.length; i++) {
+          if (!span) return;
+          let word = split[i];
+          for (let j = 0; j < word.length; j++) {
+            let letter = word[j];
+            setTimeout(() => {
+              span.innerHTML += letter;
+            }, time);
+            time += words[i];
+          }
+          time += spacing[i];
+          setTimeout(() => {
+            span.innerHTML += " ";
+          }, time);
+        }
+        let canvas = canvas_default(init_default());
+        canvas.style({
+          bgColor: "#040510",
+          strokeStyle: "#ffffff55",
+          fillStyle: "white",
+        });
+        let plane = new geometry_default();
+        let asteroid = plane.circle(150, 150, 100, 6);
+        let stars = Stars(canvas, { count: 500 });
+        let impulse = 1;
+        let lastX = -1;
+        let lastY = -1;
+        let impulseX = 0;
+        let impulseY = 0;
+        let loss = 1.01;
+        let force = 0.01;
+        window.addEventListener("mousemove", (ev) => {
+          let x = ev.pageX;
+          let y = ev.pageY;
+          if (lastX == -1 || lastY == -1) {
+            lastX = x;
+            lastY = y;
+            return;
+          }
+          let distX = x - lastX;
+          let distY = y - lastY;
+          impulseX -= distX * force;
+          impulseY -= distY * force;
+          lastX = x;
+ 	  lastY = y;
+        });
+        let keyactives = { w: false, a: false, s: false, d: false };
+        window.addEventListener("keydown", (ev) => {
+          keyactives[ev.key] = true;
+        });
+        window.addEventListener("keyup", (ev) => {
+          keyactives[ev.key] = false;
+        });
+        setInterval(() => {
+          canvas.clear();
+          stars.show();
+          stars.move(impulseX, impulseY);
+          if (keyactives.w) impulseY += 0.5;
+          if (keyactives.s) impulseY -= 0.5;
+          if (keyactives.a) impulseX += 0.5;
+          if (keyactives.d) impulseX -= 0.5;
+          impulseX /= loss;
+          impulseY /= loss;
+        }, 1e3 / 30);
+      };
+    </script>
+  </body>
+</html>
