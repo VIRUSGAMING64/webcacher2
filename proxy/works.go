@@ -86,8 +86,9 @@ func Update(obj *queue.QueueObj) {
 func MainWork() {
 	go SaveAll()
 	for {
+		t____ := (queue.GQueue.Workers)
 		for queue.GQueue.Running.Load() < int32(queue.GQueue.Workers) {
-			time.Sleep(time.Millisecond * 300)
+			time.Sleep(time.Millisecond*time.Duration(t____) + time.Millisecond*100)
 			if config.Global.NoQueue {
 				break
 			}

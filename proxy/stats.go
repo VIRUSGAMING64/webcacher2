@@ -33,7 +33,7 @@ func NewStats() *Stats {
 	return &s
 }
 
-func (s *Stats) Copy() Stats {
+func (s *Stats) Copy() *Stats {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 	s.Clean()
@@ -46,7 +46,7 @@ func (s *Stats) Copy() Stats {
 		Length:     s.Length,
 		History:    s.History,
 	}
-	return ns
+	return &ns
 }
 
 func (s *Stats) Load(file string) error {
