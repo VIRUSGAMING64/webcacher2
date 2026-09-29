@@ -6,3 +6,5 @@ webcacher.log
 queue.json
 stats.json
 src/
+webcacher2
+.vscode/

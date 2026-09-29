@@ -28,19 +28,16 @@ func OnResponse(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Response {
 		Pstats.AddHint(resp)
 		return resp
 	}
-	defer Pstats.AddBypass(resp)
 	if resp.Request.Method != "GET" || resp.StatusCode != 200 {
 		return resp
 	}
-	data, err := io.ReadAll(resp.Body)
-	fmt.Println("Downloaded", len(data), "bytes from", resp.Request.URL.String())
-	if err != nil {
-		return resp
-	}
+	data, _ := io.ReadAll(resp.Body)
+
 	//* hay que devolver el body al response, si no el dump queda vacio
 	resp.Body.Close()
 	resp.Body = io.NopCloser(bytes.NewReader(data))
 	cache.Global.Push(resp.Request, resp)
+	Pstats.AddBypass(resp)
 	return resp
 }
 
@@ -51,7 +48,7 @@ func OnRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.Request, *http.R
 	if req.Method != "GET" || urlutils.Parse(req) == "" {
 		return req, nil
 	} else if req.Header.Get("webcacher-update") == "true" {
-		return req, nil
+		//	return req, nil
 	}
 
 	resp, err := cache.Global.Pop(req)
@@ -62,7 +59,7 @@ func OnRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.Request, *http.R
 			return req, nil
 		}
 		resp.Header.Add("webcacher", "true")
-		
+
 		if err != nil {
 			return req, nil
 		}
@@ -101,6 +98,5 @@ func RunProxy() {
 	Proxy.OnRequest().HandleConnect(ConnectHandler)
 	Proxy.OnRequest().DoFunc(OnRequest)
 	Proxy.OnResponse().DoFunc(OnResponse)
-	fmt.Println("Listening on 0.0.0.0:8092")
 	fmt.Println(http.ListenAndServe(":8092", Proxy))
 }

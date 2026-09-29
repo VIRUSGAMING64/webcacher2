@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"os"
+	"runtime"
 	"sync"
 	"sync/atomic"
 	wdebug "webcacher2/debug"
@@ -19,8 +20,8 @@ type QueueObj struct {
 }
 
 type Queue struct {
-	first   *DataElem
-	last    *DataElem
+	First   *DataElem
+	Last    *DataElem
 	Mtx     sync.Mutex
 	Running atomic.Int32
 	Size    int //* Solo para saberlo viendo el archivo
@@ -29,9 +30,9 @@ type Queue struct {
 }
 
 type DataElem struct {
-	next *DataElem
+	Next *DataElem
 	Data *QueueObj
-	prev *DataElem
+	Prev *DataElem
 }
 
 type SavedQueue struct {
@@ -45,13 +46,13 @@ var UGQueue *Queue = NewQueue()
 
 func NewQueue() *Queue {
 	q := Queue{
-		Workers: 32,
+		Workers: runtime.NumCPU(),
 		Mtx:     sync.Mutex{},
 		Running: atomic.Int32{},
 		Exists:  make(map[string]bool),
 	}
-	q.first = nil
-	q.last = nil
+	q.First = nil
+	q.Last = nil
 	return &q
 }
 
@@ -70,14 +71,14 @@ func (q *Queue) Push(obj *QueueObj) {
 	q.Exists[obj.Url] = true
 	elem := DataElem{}
 	elem.Data = obj
-	if q.first == nil {
-		q.first = &elem
-		q.last = &elem
+	if q.First == nil {
+		q.First = &elem
+		q.Last = &elem
 	} else {
-		tmp := q.last
-		q.last = &elem
-		tmp.next = &elem
-		elem.prev = tmp
+		tmp := q.Last
+		q.Last = &elem
+		tmp.Next = &elem
+		elem.Prev = tmp
 	}
 	q.Size += 1
 }
@@ -85,16 +86,16 @@ func (q *Queue) Push(obj *QueueObj) {
 func (q *Queue) Pop() *QueueObj {
 	q.Mtx.Lock()
 	defer q.Mtx.Unlock()
-	if q.first == nil {
+	if q.First == nil {
 		return nil
 	}
-	obj := q.first.Data
-	q.first = q.first.next
+	obj := q.First.Data
+	q.First = q.First.Next
 	q.Size -= 1
 	q.Exists[obj.Url] = false
 
-	if q.first != nil {
-		q.first.prev = nil
+	if q.First != nil {
+		q.First.Prev = nil
 	}
 
 	return obj
@@ -103,12 +104,12 @@ func (q *Queue) Pop() *QueueObj {
 func (q *Queue) Json() []byte {
 	q.Mtx.Lock()
 	defer q.Mtx.Unlock()
-	fr := q.first
+	fr := q.First
 	lis := []*QueueObj{}
 
 	for fr != nil {
 		lis = append(lis, fr.Data)
-		fr = fr.next
+		fr = fr.Next
 	}
 	filed := SavedQueue{Size: q.Size, Workers: q.Workers, List: lis}
 

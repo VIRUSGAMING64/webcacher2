@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/http/httputil"
 	"os"
@@ -21,18 +20,20 @@ import (
 var ErrMiss = errors.New("cache: miss")
 
 type MemoryCache struct {
+	Size  int64
 	cache map[string][]byte
-	mut   sync.Mutex
+	Mtx   sync.Mutex
 }
 
-func (m MemoryCache) Push(name string, data []byte) {
-	m.mut.Lock()
-	defer m.mut.Unlock()
+func (m *MemoryCache) Push(name string, data []byte) {
+	m.Mtx.Lock()
+	defer m.Mtx.Unlock()
+	m.Size += int64(len(data))
 	m.cache[name] = data
 }
-func (m MemoryCache) Pop(name string) ([]byte, error) {
-	m.mut.Lock()
-	defer m.mut.Unlock()
+func (m *MemoryCache) Pop(name string) ([]byte, error) {
+	m.Mtx.Lock()
+	defer m.Mtx.Unlock()
 	data := m.cache[name]
 	var err error = nil
 	if len(data) == 0 {
@@ -41,31 +42,29 @@ func (m MemoryCache) Pop(name string) ([]byte, error) {
 	return data, err
 }
 
+type CacheElem struct {
+	Url   string `json:"url"`
+	Count int64  `json:"count"`
+}
+
 type UrlCache struct {
-	SavePath string            `json:"savepath"`
-	Size     int64             `json:"size"`
-	Counts   map[string]int64  `json:"count"`
-	Hashes   map[string]string `json:"hashes"`
-	MemKeys  map[string]string `json:"keys"`
-	memcache MemoryCache
+	SavePath string                `json:"savepath"`
+	Size     int64                 `json:"size"`
+	Hashes   map[string]*CacheElem `json:"hashes"`
+	Memcache *MemoryCache
 	mtx      sync.Mutex
 }
 
 var Global *UrlCache
 
 func (c *UrlCache) init() {
-	c.memcache.cache = make(map[string][]byte)
+	c.Memcache = &MemoryCache{}
+	c.Memcache.cache = make(map[string][]byte)
 	if c.SavePath == "" {
 		c.SavePath = "cache.json"
 	}
-	if c.Counts == nil {
-		c.Counts = make(map[string]int64)
-	}
 	if c.Hashes == nil {
-		c.Hashes = make(map[string]string)
-	}
-	if c.MemKeys == nil {
-		c.MemKeys = make(map[string]string)
+		c.Hashes = make(map[string]*CacheElem)
 	}
 }
 
@@ -114,14 +113,17 @@ func (c *UrlCache) Push(req *http.Request, resp *http.Response) bool {
 	if err = os.WriteFile(file, body, 0644); err != nil {
 		return false
 	}
-
-	if c.Counts[key] == 0 {
-		curr = 0
+	elem := c.Hashes[file]
+	if elem == nil {
+		elem = &CacheElem{
+			Url:   req.URL.String(),
+			Count: 0,
+		}
 	}
+	elem.Count += 1
 	c.Size += int64(len(body)) - curr
-	c.Hashes[key] = Hash(key)
-	c.MemKeys[file] = key
-	c.memcache.Push(file, body)
+	c.Hashes[key] = elem
+	c.Memcache.Push(file, body)
 	return true
 }
 
@@ -136,13 +138,13 @@ func (c *UrlCache) Pop(req *http.Request) (*http.Response, error) {
 	key := urlutils.Parse(req)
 	ext := urlutils.Extension(req)
 	file := c.CachePath(key, ext)
-	data, err := c.memcache.Pop(file)
+	data, err := c.Memcache.Pop(file)
 	mem := true
 	if err != nil {
 		mem = false
 		data, err = os.ReadFile(file)
 	} else {
-		fmt.Println("memory hint", req.URL.String())
+		///*fmt.Println("memory hint", req.URL.String())
 	}
 	if err != nil {
 		return nil, ErrMiss
@@ -152,10 +154,17 @@ func (c *UrlCache) Pop(req *http.Request) (*http.Response, error) {
 		return nil, ErrMiss
 	}
 	if mem == false {
-		c.memcache.Push(file, data)
+		c.Memcache.Push(file, data)
 	}
-	c.Counts[key] += 1
-	c.MemKeys[file] = key
+	elem := c.Hashes[file]
+	if elem == nil {
+		elem = &CacheElem{
+			Url:   req.URL.String(),
+			Count: 0,
+		}
+	}
+	elem.Count += 1
+	c.Hashes[file] = elem
 	mime := mimetype.Detect(data)
 	if mime.Is("application/json") {
 		resp.Header.Set("Content-Type", "application/json")

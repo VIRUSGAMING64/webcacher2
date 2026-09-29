@@ -33,6 +33,22 @@ func NewStats() *Stats {
 	return &s
 }
 
+func (s *Stats) Copy() Stats {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
+	s.Clean()
+	ns := Stats{
+		Total:      s.Total,
+		CacheUse:   s.CacheUse,
+		Downloaded: s.Downloaded,
+		Hints:      s.Hints,
+		Bypass:     s.Bypass,
+		Length:     s.Length,
+		History:    s.History,
+	}
+	return ns
+}
+
 func (s *Stats) Load(file string) error {
 	data, err := os.ReadFile(file)
 	if err != nil {
@@ -41,9 +57,7 @@ func (s *Stats) Load(file string) error {
 	return json.Unmarshal(data, &s)
 }
 
-func (s *Stats) Save(file string) error {
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
+func (s *Stats) Clean() {
 	his := make([]UrlStat, 0)
 	for _, elem := range s.History {
 		if time.Since(time.Unix(0, elem.Time)).Seconds() >= 60 {
@@ -52,6 +66,12 @@ func (s *Stats) Save(file string) error {
 		his = append(his, elem)
 	}
 	s.History = his
+}
+
+func (s *Stats) Save(file string) error {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
+	s.Clean()
 	data, err := json.MarshalIndent(&s, "", "   ")
 	if err != nil {
 		return err
@@ -75,6 +95,7 @@ func (s *Stats) AddHint(resp *http.Response) {
 }
 
 func (s *Stats) AddBypass(resp *http.Response) {
+
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 	size := int64(math.Max(0, float64(resp.ContentLength)))
