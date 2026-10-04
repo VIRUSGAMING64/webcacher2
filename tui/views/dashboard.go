@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"webcacher2/config"
 	"webcacher2/proxy"
 	"webcacher2/queue"
 )
@@ -14,17 +15,23 @@ func metric(name, value string) string {
 }
 
 func RenderDashboard() string {
+	proxy.Pmtx.Lock()
+	defer proxy.Pmtx.Unlock()
 
 	s := proxy.Pstats.Copy()
 	w := queue.GQueue.Workers
 
 	rows := []string{
 		metric("Descargado", formatBytes(s.Downloaded)),
-		metric("Bypass", strconv.Itoa(s.Bypass)),
+		metric("Online", strconv.FormatBool(proxy.Internet)),
+		metric("Bypass", ValueStyle.Render(strconv.Itoa(s.Bypass))),
 		metric("Hits", strconv.Itoa(s.Hints)),
 		metric("Workers", strconv.Itoa(w)),
 		metric("Requests por minuto", strconv.Itoa(len(s.History))),
-		metric("Last update", snapshotTime(time.Now())),
 	}
+	if len(proxy.Parents) > 0 {
+		rows = append(rows, metric("Current Parent", ValueStyle.Render(config.Global.Pproxy[proxy.CurrParent])))
+	}
+	rows = append(rows, metric("Last update", snapshotTime(time.Now())))
 	return PanelStyle.Render(strings.Join(rows, "\n"))
 }

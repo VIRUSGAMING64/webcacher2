@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"crypto/tls"
 	"crypto/x509"
+	"fmt"
 	"net/http"
 	"os"
 	"sync"
@@ -36,7 +37,7 @@ func Work(obj *queue.QueueObj) {
 			Proxy:           http.ProxyURL(mustParseURL("http://localhost:8092")),
 			TLSClientConfig: &tls.Config{RootCAs: rootCAs, MinVersion: tls.VersionTLS12},
 		},
-		Timeout: 3 * time.Second,
+		Timeout: 10 * time.Second,
 	}
 
 	req, err := http.ReadRequest(bufio.NewReader(bytes.NewReader(obj.Request)))
@@ -44,7 +45,20 @@ func Work(obj *queue.QueueObj) {
 	req.Header.Add("webcacher-queue", "true")
 	resp, err := client.Do(req)
 	obj.Count += 1
-	if resp == nil || resp.StatusCode != 200 {
+	if resp != nil && resp.StatusCode != 200 {
+		fmt.Println(resp.StatusCode)
+	}
+
+	if resp == nil {
+		return
+	}
+	if resp.StatusCode == 410 {
+		return
+	}
+	if resp.StatusCode >= 300 || resp.StatusCode < 200 {
+		if resp.StatusCode == 403 {
+			return
+		}
 		queue.GQueue.Push(obj)
 	}
 }
@@ -65,7 +79,7 @@ func Update(obj *queue.QueueObj) {
 			Proxy:           http.ProxyURL(mustParseURL("http://localhost:8092")),
 			TLSClientConfig: &tls.Config{RootCAs: rootCAs, MinVersion: tls.VersionTLS12},
 		},
-		Timeout: 3 * time.Second,
+		Timeout: 10 * time.Second,
 	}
 
 	/*
@@ -88,6 +102,9 @@ func MainWork() {
 	for {
 		t____ := (queue.GQueue.Workers)
 		for queue.GQueue.Running.Load() < int32(queue.GQueue.Workers) {
+			if !Internet {
+				break
+			}
 			time.Sleep(time.Millisecond*time.Duration(t____) + time.Millisecond*100)
 			if config.Global.NoQueue {
 				break
@@ -101,9 +118,6 @@ func MainWork() {
 			//go Update(obj2)
 		}
 		time.Sleep(time.Second)
-		if queue.GQueue.Running.Load() != 0 {
-			time.Sleep(time.Second * 9)
-		}
 	}
 }
 

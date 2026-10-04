@@ -8,6 +8,8 @@ import (
 func renderModel(m model) string {
 	var body string
 	switch m.view {
+	case HIST:
+		body = views.RenderHist()
 	case CACHE:
 		body = views.RenderCache()
 	case SERVER:

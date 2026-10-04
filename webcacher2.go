@@ -12,6 +12,16 @@ import (
 )
 
 func main() {
+	config.Global.Watcher()
+	cache.Global = cache.NewUrlCache()
+	cache.Global.Load()
+	for i := range config.Global.Pproxy {
+		tr, err := proxy.BuildProxyTransport(config.Global.Pproxy[i])
+		if err != nil {
+			fmt.Println(err, tr)
+		}
+		proxy.Parents = append(proxy.Parents, tr)
+	}
 
 	c := make(chan os.Signal)
 	signal.Notify(c, os.Kill, os.Interrupt)
@@ -26,11 +36,7 @@ func main() {
 			}
 		}
 	}()
-
 	go proxy.InternetChecker()
-	config.Global.Watcher()
-	cache.Global = cache.NewUrlCache()
-	cache.Global.Load()
 
 	proxy.Pstats.Load("stats.json")
 	fmt.Println("Calculating size")
