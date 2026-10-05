@@ -31,7 +31,9 @@ func BuildProxyTransport(host string) (*http.Transport, error) {
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		Proxy:           http.ProxyFromEnvironment,
 	}
-
+	if host == "LOCAL" {
+		return transport, nil
+	}
 	if strings.TrimSpace(host) == "" {
 		return transport, nil
 	}
@@ -85,7 +87,10 @@ func OnResponse(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Response {
 		return resp
 	}
 
-	data, _ := io.ReadAll(resp.Body)
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return resp
+	}
 	resp.Body.Close()
 
 	//* hay que devolver el body al response, si no el dump queda vacio

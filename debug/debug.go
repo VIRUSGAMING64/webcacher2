@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-var file string = "/tmp/webacher.log"
+const file string = "/tmp/webcacher.log"
 
 func Write(mot string, a ...any) {
 	data := []byte(fmt.Sprintln(time.Now().Local().String(), mot, a))
